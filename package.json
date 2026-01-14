@@ -5,7 +5,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "fetch-data": "node scripts/fetch-data.js",
+    "fetch-data": "tsx scripts/fetch-data.ts",
     "type-check": "tsc --noEmit"
   },
   "keywords": [
