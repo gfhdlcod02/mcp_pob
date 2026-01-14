@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mcp-pob.example.com/schemas/suggest_improvements.json",
+  "title": "suggest_improvements",
+  "description": "Generates actionable improvement suggestions for a Path of Building build based on analysis results. Suggests gem setup changes, passive tree optimizations, gear upgrades, and utility additions. Suggestions are prioritized by impact (critical, important, optional).",
+  "type": "object",
+  "inputSchema": {
+    "type": "object",
+    "required": ["build", "analysis"],
+    "properties": {
+      "build": {
+        "$ref": "parse_pob_code.json#/definitions/ParsedBuild",
+        "description": "Parsed build data from parse_pob_code tool"
+      },
+      "analysis": {
+        "$ref": "analyze_build.json#/definitions/BuildAnalysis",
+        "description": "Build analysis from analyze_build tool"
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["success", "suggestions"],
+    "properties": {
+      "success": {
+        "const": true,
+        "description": "Indicates successful suggestion generation"
+      },
+      "suggestions": {
+        "type": "array",
+        "description": "Prioritized list of improvement suggestions",
+        "items": {
+          "$ref": "#/definitions/Suggestion"
+        },
+        "minItems": 0
+      }
+    },
+    "additionalProperties": false
+  },
+  "definitions": {
+    "Suggestion": {
+      "type": "object",
+      "required": ["category", "priority", "description", "specificAction", "expectedImpact"],
+      "properties": {
+        "category": {
+          "$ref": "#/definitions/SuggestionCategory",
+          "description": "Type of suggestion"
+        },
+        "priority": {
+          "$ref": "#/definitions/SuggestionPriority",
+          "description": "Importance of this suggestion"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the suggestion"
+        },
+        "specificAction": {
+          "type": "string",
+          "description": "Exact action to take (e.g., 'Insert Multistrike in link #2')"
+        },
+        "expectedImpact": {
+          "type": "string",
+          "description": "What this change will achieve (e.g., 'Increases attack speed by 44%')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SuggestionCategory": {
+      "type": "string",
+      "enum": ["gems", "passives", "gear", "utility"],
+      "description": "Suggestion categories: 'gems' (support gem changes), 'passives' (passive tree pathing), 'gear' (item upgrades), 'utility' (curses, mobility, etc.)"
+    },
+    "SuggestionPriority": {
+      "type": "string",
+      "enum": ["critical", "important", "optional"],
+      "description": "Suggestion priority: 'critical' (life-saving, major DPS loss), 'important' (significant improvement), 'optional' (QoL improvement)"
+    }
+  }
+}

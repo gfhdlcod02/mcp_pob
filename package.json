@@ -1,0 +1,34 @@
+{
+  "name": "mcp-pob",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "fetch-data": "node scripts/fetch-data.js",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "path-of-building",
+    "poe",
+    "path-of-exile",
+    "build-analyzer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "description": "MCP Server for Path of Building integration - parse, analyze, and suggest improvements for PoE builds",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "axios": "^1.13.2",
+    "fast-xml-parser": "^5.3.3",
+    "lru-cache": "^11.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8"
+  }
+}

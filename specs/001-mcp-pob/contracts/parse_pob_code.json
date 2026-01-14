@@ -1,0 +1,418 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mcp-pob.example.com/schemas/parse_pob_code.json",
+  "title": "parse_pob_code",
+  "description": "Parses a Path of Building build code and returns structured build data. Decodes base64+zlib compressed XML, extracts character info, skills, passives, gear, and stats. Caches results for performance (3s cached, 10s cold).",
+  "type": "object",
+  "inputSchema": {
+    "type": "object",
+    "required": ["buildCode"],
+    "properties": {
+      "buildCode": {
+        "type": "string",
+        "description": "Base64-encoded, zlib-compressed Path of Building XML build code (max 1MB after decompression)",
+        "minLength": 1,
+        "maxLength": 1400000,
+        "pattern": "^[A-Za-z0-9+/=]+$"
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": ["success", "build"],
+        "properties": {
+          "success": {
+            "const": true,
+            "description": "Indicates successful parse"
+          },
+          "build": {
+            "$ref": "#/definitions/ParsedBuild"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "const": false,
+            "description": "Indicates parse failure"
+          },
+          "error": {
+            "$ref": "#/definitions/ParseError"
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "definitions": {
+    "ParsedBuild": {
+      "type": "object",
+      "required": ["buildId", "version", "gameVersion", "character", "skills", "passives", "gear", "stats", "parsedAt"],
+      "properties": {
+        "buildId": {
+          "type": "string",
+          "description": "SHA-256 hash of original build code (used for cache key)"
+        },
+        "version": {
+          "type": "string",
+          "description": "Path of Building version (e.g., '1.4.170')",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "gameVersion": {
+          "type": "string",
+          "description": "Path of Exile version (e.g., '3.25.0')",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "character": {
+          "$ref": "#/definitions/Character"
+        },
+        "skills": {
+          "type": "array",
+          "description": "All skill configurations (main skill + support gems)",
+          "items": {
+            "$ref": "#/definitions/SkillSetup"
+          },
+          "minItems": 1
+        },
+        "passives": {
+          "$ref": "#/definitions/PassiveTree"
+        },
+        "gear": {
+          "type": "array",
+          "description": "Equipped items (12 slots max)",
+          "items": {
+            "$ref": "#/definitions/GearSlot"
+          },
+          "maxItems": 12
+        },
+        "stats": {
+          "type": "array",
+          "description": "Calculated or estimated stats",
+          "items": {
+            "$ref": "#/definitions/Stat"
+          }
+        },
+        "parsedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of parse"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Character": {
+      "type": "object",
+      "required": ["class", "ascendancy", "level"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": ["Witch", "Ranger", "Marauder", "Duelist", "Shadow", "Templar", "Scion", "Mercenary", "Monk", "Sorceress", "Huntress", "Druid"],
+          "description": "Character class (PoE 1 and PoE 2)"
+        },
+        "ascendancy": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Ascendancy class (must match character class)"
+            }
+          ]
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Character level"
+        },
+        "league": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "League name (if applicable)"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SkillSetup": {
+      "type": "object",
+      "required": ["id", "skillName", "gemLevel", "quality", "supports", "linkCount", "isMainSkill"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique skill identifier"
+        },
+        "skillName": {
+          "type": "string",
+          "description": "Active skill name"
+        },
+        "gemLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 21,
+          "description": "Gem level (21 if corrupted)"
+        },
+        "quality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Gem quality percentage"
+        },
+        "supports": {
+          "type": "array",
+          "description": "Linked support gems",
+          "items": {
+            "$ref": "#/definitions/SupportGem"
+          }
+        },
+        "linkCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6,
+          "description": "Number of linked sockets"
+        },
+        "isMainSkill": {
+          "type": "boolean",
+          "description": "True if this is the primary damage skill"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SupportGem": {
+      "type": "object",
+      "required": ["name", "gemLevel", "quality"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Support gem name"
+        },
+        "gemLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Gem level"
+        },
+        "quality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Gem quality percentage"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PassiveTree": {
+      "type": "object",
+      "required": ["totalPoints", "nodes", "keystones", "notables", "version"],
+      "properties": {
+        "totalPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 123,
+          "description": "Total passive points spent"
+        },
+        "nodes": {
+          "type": "array",
+          "description": "Allocated passive node IDs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keystones": {
+          "type": "array",
+          "description": "Allocated keystone passives",
+          "items": {
+            "$ref": "#/definitions/Keystone"
+          }
+        },
+        "notables": {
+          "type": "array",
+          "description": "Allocated notable passives",
+          "items": {
+            "$ref": "#/definitions/Notable"
+          }
+        },
+        "version": {
+          "type": "string",
+          "description": "Passive tree version"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Keystone": {
+      "type": "object",
+      "required": ["id", "name", "effect"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Node ID from passive tree"
+        },
+        "name": {
+          "type": "string",
+          "description": "Keystone name"
+        },
+        "effect": {
+          "type": "string",
+          "description": "Keystone effect description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Notable": {
+      "type": "object",
+      "required": ["id", "name", "effect"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Node ID from passive tree"
+        },
+        "name": {
+          "type": "string",
+          "description": "Notable name"
+        },
+        "effect": {
+          "type": "string",
+          "description": "Notable effect description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "GearSlot": {
+      "type": "object",
+      "required": ["slot", "itemName", "baseType", "itemClass", "affixes", "corrupted"],
+      "properties": {
+        "slot": {
+          "type": "string",
+          "enum": ["Weapon1", "Weapon2", "Helmet", "BodyArmour", "Gloves", "Boots", "Amulet", "Ring1", "Ring2", "Belt", "Flask1", "Flask2", "Flask3", "Flask4", "Flask5"],
+          "description": "Equipment slot type"
+        },
+        "itemName": {
+          "type": "string",
+          "description": "Item name"
+        },
+        "baseType": {
+          "type": "string",
+          "description": "Base item type"
+        },
+        "itemClass": {
+          "type": "string",
+          "description": "Item class"
+        },
+        "affixes": {
+          "type": "array",
+          "description": "Explicit modifiers",
+          "items": {
+            "$ref": "#/definitions/Affix"
+          },
+          "maxItems": 6
+        },
+        "implicit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Implicit modifier"
+            }
+          ]
+        },
+        "corrupted": {
+          "type": "boolean",
+          "description": "Whether item is corrupted"
+        },
+        "influences": {
+          "type": "array",
+          "description": "Item influences (Shaper, Elder, etc.)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Affix": {
+      "type": "object",
+      "required": ["type", "text", "unparsed"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["explicit", "implicit", "corrupted-implicit"],
+          "description": "Modifier type"
+        },
+        "text": {
+          "type": "string",
+          "description": "Modifier text as shown in PoB"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "description": "Numeric value (if parseable)"
+            }
+          ]
+        },
+        "unparsed": {
+          "type": "boolean",
+          "description": "True if value couldn't be parsed from text"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Stat": {
+      "type": "object",
+      "required": ["name", "value", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Stat name"
+        },
+        "value": {
+          "type": "number",
+          "description": "Stat value"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["explicit", "estimated", "calculated"],
+          "description": "Where this stat came from"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParseError": {
+      "type": "object",
+      "required": ["code", "message", "details"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["INVALID_BASE64", "DECOMPRESSION_ERROR", "INVALID_XML", "UNSUPPORTED_VERSION", "MISSING_REQUIRED_FIELD", "PASSIVE_TREE_ERROR"],
+          "description": "Error code indicating failure type"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional error details"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

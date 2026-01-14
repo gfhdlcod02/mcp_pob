@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mcp-pob.example.com/schemas/analyze_build.json",
+  "title": "analyze_build",
+  "description": "Analyzes a parsed Path of Building build to identify strengths, weaknesses, playstyle focus, and defensive/offensive ratings. Uses rule-based heuristics to detect build patterns (clear speed, boss killing, tankiness).",
+  "type": "object",
+  "inputSchema": {
+    "type": "object",
+    "required": ["build"],
+    "properties": {
+      "build": {
+        "$ref": "parse_pob_code.json#/definitions/ParsedBuild",
+        "description": "Parsed build data from parse_pob_code tool"
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["success", "analysis"],
+    "properties": {
+      "success": {
+        "const": true,
+        "description": "Indicates successful analysis"
+      },
+      "analysis": {
+        "$ref": "#/definitions/BuildAnalysis"
+      }
+    },
+    "additionalProperties": false
+  },
+  "definitions": {
+    "BuildAnalysis": {
+      "type": "object",
+      "required": ["strengths", "weaknesses", "playstyleType", "defensiveRating", "offensiveRating", "analyzedAt"],
+      "properties": {
+        "strengths": {
+          "type": "array",
+          "description": "List of build strengths (e.g., 'Chaos immunity', '75% all elemental resistances')",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "weaknesses": {
+          "type": "array",
+          "description": "List of build weaknesses (e.g., 'Uncapped lightning resistance', 'No curse setup')",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "playstyleType": {
+          "$ref": "#/definitions/PlaystyleType",
+          "description": "Detected playstyle focus"
+        },
+        "defensiveRating": {
+          "$ref": "#/definitions/DefensiveRating",
+          "description": "Defensive capability assessment"
+        },
+        "offensiveRating": {
+          "$ref": "#/definitions/OffensiveRating",
+          "description": "Offensive capability assessment"
+        },
+        "analyzedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of analysis"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PlaystyleType": {
+      "type": "string",
+      "enum": ["clear", "boss", "hybrid", "unknown"],
+      "description": "Playstyle classification: 'clear' (clear speed focused), 'boss' (single-target DPS), 'hybrid' (balanced), 'unknown' (insufficient data)"
+    },
+    "DefensiveRating": {
+      "type": "string",
+      "enum": ["glass_cannon", "moderate", "tanky", "uber_viable"],
+      "description": "Defensive rating: 'glass_cannon' (low defenses), 'moderate' (mid-tier defenses), 'tanky' (high defenses), 'uber_viable' (uber boss capable)"
+    },
+    "OffensiveRating": {
+      "type": "string",
+      "enum": ["low", "moderate", "high", "extreme"],
+      "description": "Offensive rating: 'low' (<100k DPS), 'moderate' (100k-500k DPS), 'high' (500k-1M DPS), 'extreme' (>1M DPS)"
+    }
+  }
+}
